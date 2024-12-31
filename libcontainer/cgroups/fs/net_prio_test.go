@@ -4,11 +4,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/opencontainers/runc/libcontainer/cgroups"
 	"github.com/opencontainers/runc/libcontainer/cgroups/fscommon"
+	"github.com/opencontainers/runc/libcontainer/configs"
 )
 
-var prioMap = []*cgroups.IfPrioMap{
+var prioMap = []*configs.IfPrioMap{
 	{
 		Interface: "test",
 		Priority:  5,
@@ -18,7 +18,7 @@ var prioMap = []*cgroups.IfPrioMap{
 func TestNetPrioSetIfPrio(t *testing.T) {
 	path := tempDir(t, "net_prio")
 
-	r := &cgroups.Resources{
+	r := &configs.Resources{
 		NetPrioIfpriomap: prioMap,
 	}
 	netPrio := &NetPrioGroup{}

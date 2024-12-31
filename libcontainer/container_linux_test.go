@@ -32,7 +32,7 @@ func (m *mockCgroupManager) Apply(pid int) error {
 	return nil
 }
 
-func (m *mockCgroupManager) Set(_ *cgroups.Resources) error {
+func (m *mockCgroupManager) Set(_ *configs.Resources) error {
 	return nil
 }
 
@@ -57,16 +57,16 @@ func (m *mockCgroupManager) Path(subsys string) string {
 	return m.paths[subsys]
 }
 
-func (m *mockCgroupManager) Freeze(_ cgroups.FreezerState) error {
+func (m *mockCgroupManager) Freeze(state configs.FreezerState) error {
 	return nil
 }
 
-func (m *mockCgroupManager) GetCgroups() (*cgroups.Cgroup, error) {
+func (m *mockCgroupManager) GetCgroups() (*configs.Cgroup, error) {
 	return nil, nil
 }
 
-func (m *mockCgroupManager) GetFreezerState() (cgroups.FreezerState, error) {
-	return cgroups.Thawed, nil
+func (m *mockCgroupManager) GetFreezerState() (configs.FreezerState, error) {
+	return configs.Thawed, nil
 }
 
 type mockProcess struct {
@@ -243,8 +243,8 @@ func TestGetContainerStateAfterUpdate(t *testing.T) {
 				{Type: configs.NEWUTS},
 				{Type: configs.NEWIPC},
 			},
-			Cgroups: &cgroups.Cgroup{
-				Resources: &cgroups.Resources{
+			Cgroups: &configs.Cgroup{
+				Resources: &configs.Resources{
 					Memory: 1024,
 				},
 			},

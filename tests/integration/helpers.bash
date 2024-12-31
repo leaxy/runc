@@ -13,9 +13,12 @@ eval "$IMAGES"
 unset IMAGES
 
 : "${RUNC:="${INTEGRATION_ROOT}/../../runc"}"
-
-# Path to binaries compiled from packages in tests/cmd by "make test-binaries").
-TESTBINDIR=${INTEGRATION_ROOT}/../cmd/_bin
+RECVTTY="${INTEGRATION_ROOT}/../../tests/cmd/recvtty/recvtty"
+SD_HELPER="${INTEGRATION_ROOT}/../../tests/cmd/sd-helper/sd-helper"
+SECCOMP_AGENT="${INTEGRATION_ROOT}/../../tests/cmd/seccompagent/seccompagent"
+FS_IDMAP="${INTEGRATION_ROOT}/../../tests/cmd/fs-idmap/fs-idmap"
+PIDFD_KILL="${INTEGRATION_ROOT}/../../tests/cmd/pidfd-kill/pidfd-kill"
+REMAP_ROOTFS="${INTEGRATION_ROOT}/../../tests/cmd/remap-rootfs/remap-rootfs"
 
 # Some variables may not always be set. Set those to empty value,
 # if unset, to avoid "unbound variable" error.
@@ -140,7 +143,7 @@ function init_cgroup_paths() {
 function create_parent() {
 	if [ -v RUNC_USE_SYSTEMD ]; then
 		[ ! -v SD_PARENT_NAME ] && return
-		"$TESTBINDIR/sd-helper" --parent machine.slice start "$SD_PARENT_NAME"
+		"$SD_HELPER" --parent machine.slice start "$SD_PARENT_NAME"
 	else
 		[ ! -v REL_PARENT_PATH ] && return
 		if [ -v CGROUP_V2 ]; then
@@ -160,7 +163,7 @@ function create_parent() {
 function remove_parent() {
 	if [ -v RUNC_USE_SYSTEMD ]; then
 		[ ! -v SD_PARENT_NAME ] && return
-		"$TESTBINDIR/sd-helper" --parent machine.slice stop "$SD_PARENT_NAME"
+		"$SD_HELPER" --parent machine.slice stop "$SD_PARENT_NAME"
 	else
 		[ ! -v REL_PARENT_PATH ] && return
 		if [ -v CGROUP_V2 ]; then
@@ -712,7 +715,7 @@ function setup_recvtty() {
 	export CONSOLE_SOCKET="$dir/sock"
 
 	# We need to start recvtty in the background, so we double fork in the shell.
-	("$TESTBINDIR/recvtty" --pid-file "$dir/pid" --mode null "$CONSOLE_SOCKET" &) &
+	("$RECVTTY" --pid-file "$dir/pid" --mode null "$CONSOLE_SOCKET" &) &
 }
 
 function teardown_recvtty() {
@@ -729,7 +732,7 @@ function teardown_recvtty() {
 }
 
 function setup_seccompagent() {
-	("$TESTBINDIR/seccompagent" -socketfile="$SECCCOMP_AGENT_SOCKET" -pid-file "$BATS_TMPDIR/seccompagent.pid" &) &
+	("${SECCOMP_AGENT}" -socketfile="$SECCCOMP_AGENT_SOCKET" -pid-file "$BATS_TMPDIR/seccompagent.pid" &) &
 }
 
 function teardown_seccompagent() {
@@ -787,7 +790,7 @@ function teardown_bundle() {
 function remap_rootfs() {
 	[ ! -v ROOT ] && return 0 # nothing to remap
 
-	"$TESTBINDIR/remap-rootfs" "$ROOT/bundle"
+	"$REMAP_ROOTFS" "$ROOT/bundle"
 }
 
 function is_kernel_gte() {
@@ -809,7 +812,7 @@ function requires_idmap_fs() {
 
 	# We need to "|| true" it to avoid CI failure as this binary may return with
 	# something different than 0.
-	stderr=$("$TESTBINDIR/fs-idmap" "$fs" 2>&1 >/dev/null || true)
+	stderr=$($FS_IDMAP "$fs" 2>&1 >/dev/null || true)
 
 	case $stderr in
 	*invalid\ argument)
@@ -843,7 +846,7 @@ function setup_pidfd_kill() {
 	mkdir "${dir}"
 	export PIDFD_SOCKET="${dir}/sock"
 
-	("$TESTBINDIR/pidfd-kill" --pid-file "${dir}/pid" --signal "${signal}" "${PIDFD_SOCKET}" &) &
+	("${PIDFD_KILL}" --pid-file "${dir}/pid" --signal "${signal}" "${PIDFD_SOCKET}" &) &
 
 	# ensure socket is ready
 	retry 10 1 stat "${PIDFD_SOCKET}"

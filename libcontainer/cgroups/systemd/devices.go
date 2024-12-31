@@ -5,7 +5,7 @@ import (
 
 	dbus "github.com/godbus/dbus/v5"
 
-	"github.com/opencontainers/runc/libcontainer/cgroups"
+	"github.com/opencontainers/runc/libcontainer/configs"
 )
 
 // freezeBeforeSet answers whether there is a need to freeze the cgroup before
@@ -17,7 +17,7 @@ import (
 // (unlike our fs driver, they will happily write deny-all rules to running
 // containers). So we have to freeze the container to avoid the container get
 // an occasional "permission denied" error.
-func (m *LegacyManager) freezeBeforeSet(unitName string, r *cgroups.Resources) (needsFreeze, needsThaw bool, err error) {
+func (m *LegacyManager) freezeBeforeSet(unitName string, r *configs.Resources) (needsFreeze, needsThaw bool, err error) {
 	// Special case for SkipDevices, as used by Kubernetes to create pod
 	// cgroups with allow-all device policy).
 	if r.SkipDevices {
@@ -60,13 +60,13 @@ func (m *LegacyManager) freezeBeforeSet(unitName string, r *cgroups.Resources) (
 	if err != nil {
 		return
 	}
-	if freezerState == cgroups.Frozen {
+	if freezerState == configs.Frozen {
 		// Already frozen, and should stay frozen.
 		needsFreeze = false
 		needsThaw = false
 	}
 
-	if r.Freezer == cgroups.Frozen {
+	if r.Freezer == configs.Frozen {
 		// Will be frozen anyway -- no need to thaw.
 		needsThaw = false
 	}

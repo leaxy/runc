@@ -6,6 +6,7 @@ import (
 
 	"github.com/opencontainers/runc/libcontainer/cgroups"
 	"github.com/opencontainers/runc/libcontainer/cgroups/fscommon"
+	"github.com/opencontainers/runc/libcontainer/configs"
 )
 
 const (
@@ -20,7 +21,7 @@ func TestPidsSetMax(t *testing.T) {
 		"pids.max": "max",
 	})
 
-	r := &cgroups.Resources{
+	r := &configs.Resources{
 		PidsLimit: maxLimited,
 	}
 	pids := &PidsGroup{}
@@ -44,7 +45,7 @@ func TestPidsSetUnlimited(t *testing.T) {
 		"pids.max": strconv.Itoa(maxLimited),
 	})
 
-	r := &cgroups.Resources{
+	r := &configs.Resources{
 		PidsLimit: maxUnlimited,
 	}
 	pids := &PidsGroup{}

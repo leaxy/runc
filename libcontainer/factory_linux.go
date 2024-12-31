@@ -9,7 +9,6 @@ import (
 	securejoin "github.com/cyphar/filepath-securejoin"
 	"golang.org/x/sys/unix"
 
-	"github.com/opencontainers/runc/libcontainer/cgroups"
 	"github.com/opencontainers/runc/libcontainer/cgroups/manager"
 	"github.com/opencontainers/runc/libcontainer/configs"
 	"github.com/opencontainers/runc/libcontainer/configs/validate"
@@ -83,7 +82,7 @@ func Create(root, id string, config *configs.Config) (*Container, error) {
 	if err != nil {
 		return nil, fmt.Errorf("unable to get cgroup freezer state: %w", err)
 	}
-	if st == cgroups.Frozen {
+	if st == configs.Frozen {
 		return nil, errors.New("container's cgroup unexpectedly frozen")
 	}
 

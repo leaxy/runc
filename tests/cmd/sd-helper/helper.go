@@ -9,6 +9,7 @@ import (
 
 	"github.com/opencontainers/runc/libcontainer/cgroups"
 	"github.com/opencontainers/runc/libcontainer/cgroups/systemd"
+	"github.com/opencontainers/runc/libcontainer/configs"
 )
 
 func usage() {
@@ -56,7 +57,7 @@ func main() {
 	}
 }
 
-func newManager(config *cgroups.Cgroup) (cgroups.Manager, error) {
+func newManager(config *configs.Cgroup) (cgroups.Manager, error) {
 	if cgroups.IsCgroup2UnifiedMode() {
 		return systemd.NewUnifiedManager(config, "")
 	}
@@ -64,10 +65,10 @@ func newManager(config *cgroups.Cgroup) (cgroups.Manager, error) {
 }
 
 func unitCommand(cmd, name, parent string) error {
-	podConfig := &cgroups.Cgroup{
+	podConfig := &configs.Cgroup{
 		Name:      name,
 		Parent:    parent,
-		Resources: &cgroups.Resources{},
+		Resources: &configs.Resources{},
 	}
 	pm, err := newManager(podConfig)
 	if err != nil {

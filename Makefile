@@ -77,27 +77,26 @@ runc-bin:
 	$(GO_BUILD) -o runc .
 
 .PHONY: all
-all: runc memfd-bind
+all: runc memfd-bind recvtty sd-helper seccompagent fs-idmap pidfd-kill remap-rootfs
 
 .PHONY: memfd-bind
 memfd-bind:
 	$(GO_BUILD) -o contrib/cmd/$@/$@ ./contrib/cmd/$@
 
-TESTBINDIR := tests/cmd/_bin
-$(TESTBINDIR):
-	mkdir $(TESTBINDIR)
-
-TESTBINS := recvtty sd-helper seccompagent fs-idmap pidfd-kill remap-rootfs
-.PHONY: test-binaries $(TESTBINS)
-test-binaries: $(TESTBINS)
-$(TESTBINS): $(TESTBINDIR)
-	$(GO_BUILD) -o $(TESTBINDIR) ./tests/cmd/$@
+.PHONY: recvtty sd-helper seccompagent fs-idmap pidfd-kill remap-rootfs
+recvtty sd-helper seccompagent fs-idmap pidfd-kill remap-rootfs:
+	$(GO_BUILD) -o tests/cmd/$@/$@ ./tests/cmd/$@
 
 .PHONY: clean
 clean:
 	rm -f runc runc-*
 	rm -f contrib/cmd/memfd-bind/memfd-bind
-	rm -fr $(TESTBINDIR)
+	rm -f tests/cmd/recvtty/recvtty
+	rm -f tests/cmd/sd-helper/sd-helper
+	rm -f tests/cmd/seccompagent/seccompagent
+	rm -f tests/cmd/fs-idmap/fs-idmap
+	rm -f tests/cmd/pidfd-kill/pidfd-kill
+	rm -f tests/cmd/remap-rootfs/remap-rootfs
 	sudo rm -rf release
 	rm -rf man/man8
 
@@ -129,7 +128,7 @@ dbuild: runcimage
 	$(CONTAINER_ENGINE) run $(CONTAINER_ENGINE_RUN_FLAGS) \
 		--privileged --rm \
 		-v $(CURDIR):/go/src/$(PROJECT) \
-		$(RUNC_IMAGE) make clean runc test-binaries
+		$(RUNC_IMAGE) make clean all
 
 .PHONY: lint
 lint:
@@ -158,7 +157,7 @@ unittest: runcimage
 		$(RUNC_IMAGE) make localunittest TESTFLAGS="$(TESTFLAGS)"
 
 .PHONY: localunittest
-localunittest: test-binaries
+localunittest: all
 	$(GO) test -timeout 3m -tags "$(BUILDTAGS)" $(TESTFLAGS) -v ./...
 
 .PHONY: integration
@@ -170,7 +169,7 @@ integration: runcimage
 		$(RUNC_IMAGE) make localintegration TESTPATH="$(TESTPATH)"
 
 .PHONY: localintegration
-localintegration: runc test-binaries
+localintegration: all
 	bats -t tests/integration$(TESTPATH)
 
 .PHONY: rootlessintegration
@@ -182,7 +181,7 @@ rootlessintegration: runcimage
 		$(RUNC_IMAGE) make localrootlessintegration
 
 .PHONY: localrootlessintegration
-localrootlessintegration: runc test-binaries
+localrootlessintegration: all
 	tests/rootless.sh
 
 .PHONY: shell
@@ -208,7 +207,7 @@ install-man: man
 .PHONY: cfmt
 cfmt: C_SRC=$(shell git ls-files '*.c' | grep -v '^vendor/')
 cfmt:
-	indent -linux -l120 -il0 -ppi2 -cp1 -sar -T size_t -T jmp_buf $(C_SRC)
+	indent -linux -l120 -il0 -ppi2 -cp1 -T size_t -T jmp_buf $(C_SRC)
 
 .PHONY: shellcheck
 shellcheck:

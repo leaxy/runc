@@ -350,7 +350,7 @@ func (c *Container) start(process *Process) (retErr error) {
 
 	if process.Init {
 		c.fifo.Close()
-		if c.config.HasHook(configs.Poststart) {
+		if c.config.Hooks != nil {
 			s, err := c.currentOCIState()
 			if err != nil {
 				return err
@@ -417,7 +417,7 @@ func (c *Container) signal(s os.Signal) error {
 		// does nothing until it's thawed. Only thaw the cgroup
 		// for SIGKILL.
 		if paused, _ := c.isPaused(); paused {
-			_ = c.cgroupManager.Freeze(cgroups.Thawed)
+			_ = c.cgroupManager.Freeze(configs.Thawed)
 		}
 	}
 	return nil
@@ -609,16 +609,14 @@ func (c *Container) newInitProcess(p *Process, cmd *exec.Cmd, comm *processComm)
 	}
 
 	init := &initProcess{
-		containerProcess: containerProcess{
-			cmd:           cmd,
-			comm:          comm,
-			manager:       c.cgroupManager,
-			config:        c.newInitConfig(p),
-			process:       p,
-			bootstrapData: data,
-			container:     c,
-		},
+		cmd:             cmd,
+		comm:            comm,
+		manager:         c.cgroupManager,
 		intelRdtManager: c.intelRdtManager,
+		config:          c.newInitConfig(p),
+		container:       c,
+		process:         p,
+		bootstrapData:   data,
 	}
 	c.initProcess = init
 	return init, nil
@@ -634,18 +632,15 @@ func (c *Container) newSetnsProcess(p *Process, cmd *exec.Cmd, comm *processComm
 		return nil, err
 	}
 	proc := &setnsProcess{
-		containerProcess: containerProcess{
-			cmd:           cmd,
-			comm:          comm,
-			manager:       c.cgroupManager,
-			config:        c.newInitConfig(p),
-			process:       p,
-			bootstrapData: data,
-			container:     c,
-		},
+		cmd:             cmd,
 		cgroupPaths:     state.CgroupPaths,
 		rootlessCgroups: c.config.RootlessCgroups,
 		intelRdtPath:    state.IntelRdtPath,
+		comm:            comm,
+		manager:         c.cgroupManager,
+		config:          c.newInitConfig(p),
+		process:         p,
+		bootstrapData:   data,
 		initProcessPid:  state.InitProcessPid,
 	}
 	if len(p.SubCgroupPaths) > 0 {
@@ -747,7 +742,7 @@ func (c *Container) Pause() error {
 	}
 	switch status {
 	case Running, Created:
-		if err := c.cgroupManager.Freeze(cgroups.Frozen); err != nil {
+		if err := c.cgroupManager.Freeze(configs.Frozen); err != nil {
 			return err
 		}
 		return c.state.transition(&pausedState{
@@ -771,7 +766,7 @@ func (c *Container) Resume() error {
 	if status != Paused {
 		return ErrNotPaused
 	}
-	if err := c.cgroupManager.Freeze(cgroups.Thawed); err != nil {
+	if err := c.cgroupManager.Freeze(configs.Thawed); err != nil {
 		return err
 	}
 	return c.state.transition(&runningState{
@@ -891,7 +886,7 @@ func (c *Container) isPaused() (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	return state == cgroups.Frozen, nil
+	return state == configs.Frozen, nil
 }
 
 func (c *Container) currentState() *State {

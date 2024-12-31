@@ -12,6 +12,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"golang.org/x/sys/unix"
@@ -112,7 +113,7 @@ func (s *symlinkStack) push(dir *os.File, remainingPath, linkTarget string) erro
 		return nil
 	}
 	// Split the link target and clean up any "" parts.
-	linkTargetParts := slices_DeleteFunc(
+	linkTargetParts := slices.DeleteFunc(
 		strings.Split(linkTarget, "/"),
 		func(part string) bool { return part == "" || part == "." })
 

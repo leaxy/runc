@@ -662,9 +662,6 @@ func setupRlimits(limits []configs.Rlimit, pid int) error {
 }
 
 func setupScheduler(config *configs.Config) error {
-	if config.Scheduler == nil {
-		return nil
-	}
 	attr, err := configs.ToSchedAttr(config.Scheduler)
 	if err != nil {
 		return err
@@ -674,35 +671,6 @@ func setupScheduler(config *configs.Config) error {
 			return errors.New("process scheduler can't be used together with AllowedCPUs")
 		}
 		return fmt.Errorf("error setting scheduler: %w", err)
-	}
-	return nil
-}
-
-func setupIOPriority(config *configs.Config) error {
-	const ioprioWhoPgrp = 1
-
-	ioprio := config.IOPriority
-	if ioprio == nil {
-		return nil
-	}
-	class := 0
-	switch ioprio.Class {
-	case specs.IOPRIO_CLASS_RT:
-		class = 1
-	case specs.IOPRIO_CLASS_BE:
-		class = 2
-	case specs.IOPRIO_CLASS_IDLE:
-		class = 3
-	default:
-		return fmt.Errorf("invalid io priority class: %s", ioprio.Class)
-	}
-
-	// Combine class and priority into a single value
-	// https://github.com/torvalds/linux/blob/v5.18/include/uapi/linux/ioprio.h#L5-L17
-	iop := (class << 13) | ioprio.Priority
-	_, _, errno := unix.RawSyscall(unix.SYS_IOPRIO_SET, ioprioWhoPgrp, 0, uintptr(iop))
-	if errno != 0 {
-		return fmt.Errorf("failed to set io priority: %w", errno)
 	}
 	return nil
 }
@@ -728,12 +696,12 @@ func signalAllProcesses(m cgroups.Manager, s unix.Signal) error {
 		}
 	}
 
-	if err := m.Freeze(cgroups.Frozen); err != nil {
+	if err := m.Freeze(configs.Frozen); err != nil {
 		logrus.Warn(err)
 	}
 	pids, err := m.GetAllPids()
 	if err != nil {
-		if err := m.Freeze(cgroups.Thawed); err != nil {
+		if err := m.Freeze(configs.Thawed); err != nil {
 			logrus.Warn(err)
 		}
 		return err
@@ -744,7 +712,7 @@ func signalAllProcesses(m cgroups.Manager, s unix.Signal) error {
 			logrus.Warnf("kill %d: %v", pid, err)
 		}
 	}
-	if err := m.Freeze(cgroups.Thawed); err != nil {
+	if err := m.Freeze(configs.Thawed); err != nil {
 		logrus.Warn(err)
 	}
 

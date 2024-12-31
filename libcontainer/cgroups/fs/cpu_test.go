@@ -7,6 +7,7 @@ import (
 
 	"github.com/opencontainers/runc/libcontainer/cgroups"
 	"github.com/opencontainers/runc/libcontainer/cgroups/fscommon"
+	"github.com/opencontainers/runc/libcontainer/configs"
 )
 
 func TestCpuSetShares(t *testing.T) {
@@ -21,7 +22,7 @@ func TestCpuSetShares(t *testing.T) {
 		"cpu.shares": strconv.Itoa(sharesBefore),
 	})
 
-	r := &cgroups.Resources{
+	r := &configs.Resources{
 		CpuShares: sharesAfter,
 	}
 	cpu := &CpuGroup{}
@@ -62,7 +63,7 @@ func TestCpuSetBandWidth(t *testing.T) {
 		"cpu.rt_period_us":  strconv.Itoa(rtPeriodBefore),
 	})
 
-	r := &cgroups.Resources{
+	r := &configs.Resources{
 		CpuQuota:     quotaAfter,
 		CpuBurst:     &burstAfter,
 		CpuPeriod:    periodAfter,
@@ -190,7 +191,7 @@ func TestCpuSetRtSchedAtApply(t *testing.T) {
 		"cpu.rt_period_us":  strconv.Itoa(rtPeriodBefore),
 	})
 
-	r := &cgroups.Resources{
+	r := &configs.Resources{
 		CpuRtRuntime: rtRuntimeAfter,
 		CpuRtPeriod:  rtPeriodAfter,
 	}

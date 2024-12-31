@@ -3,36 +3,41 @@
 package capabilities
 
 import (
-	"fmt"
 	"sort"
 	"strings"
-	"sync"
 
-	"github.com/moby/sys/capability"
 	"github.com/opencontainers/runc/libcontainer/configs"
 	"github.com/sirupsen/logrus"
+	"github.com/syndtr/gocapability/capability"
 )
 
-func capToStr(c capability.Cap) string {
-	return "CAP_" + strings.ToUpper(c.String())
-}
+const allCapabilityTypes = capability.CAPS | capability.BOUNDING | capability.AMBIENT
 
-var capMap = sync.OnceValues(func() (map[string]capability.Cap, error) {
-	list, err := capability.ListSupported()
-	if err != nil {
-		return nil, err
+var (
+	capabilityMap map[string]capability.Cap
+	capTypes      = []capability.CapType{
+		capability.BOUNDING,
+		capability.PERMITTED,
+		capability.INHERITABLE,
+		capability.EFFECTIVE,
+		capability.AMBIENT,
 	}
-	cm := make(map[string]capability.Cap, len(list))
-	for _, c := range list {
-		cm[capToStr(c)] = c
+)
+
+func init() {
+	capabilityMap = make(map[string]capability.Cap, capability.CAP_LAST_CAP+1)
+	for _, c := range capability.List() {
+		if c > capability.CAP_LAST_CAP {
+			continue
+		}
+		capabilityMap["CAP_"+strings.ToUpper(c.String())] = c
 	}
-	return cm, nil
-})
+}
 
 // KnownCapabilities returns the list of the known capabilities.
 // Used by `runc features`.
 func KnownCapabilities() []string {
-	list := capability.ListKnown()
+	list := capability.List()
 	res := make([]string, len(list))
 	for i, c := range list {
 		res[i] = "CAP_" + strings.ToUpper(c.String())
@@ -44,12 +49,11 @@ func KnownCapabilities() []string {
 // or Capabilities that are unavailable in the current environment are ignored,
 // printing a warning instead.
 func New(capConfig *configs.Capabilities) (*Caps, error) {
-	var c Caps
+	var (
+		err error
+		c   Caps
+	)
 
-	_, err := capMap()
-	if err != nil {
-		return nil, err
-	}
 	unknownCaps := make(map[string]struct{})
 	c.caps = map[capability.CapType][]capability.Cap{
 		capability.BOUNDING:    capSlice(capConfig.Bounding, unknownCaps),
@@ -71,10 +75,9 @@ func New(capConfig *configs.Capabilities) (*Caps, error) {
 // equivalent, and returns them as a slice. Unknown or unavailable capabilities
 // are not returned, but appended to unknownCaps.
 func capSlice(caps []string, unknownCaps map[string]struct{}) []capability.Cap {
-	cm, _ := capMap()
-	out := make([]capability.Cap, 0, len(caps))
+	var out []capability.Cap
 	for _, c := range caps {
-		if v, ok := cm[c]; !ok {
+		if v, ok := capabilityMap[c]; !ok {
 			unknownCaps[c] = struct{}{}
 		} else {
 			out = append(out, v)
@@ -85,7 +88,7 @@ func capSlice(caps []string, unknownCaps map[string]struct{}) []capability.Cap {
 
 // mapKeys returns the keys of input in sorted order
 func mapKeys(input map[string]struct{}) []string {
-	keys := make([]string, 0, len(input))
+	var keys []string
 	for c := range input {
 		keys = append(keys, c)
 	}
@@ -108,36 +111,9 @@ func (c *Caps) ApplyBoundingSet() error {
 
 // Apply sets all the capabilities for the current process in the config.
 func (c *Caps) ApplyCaps() error {
-	c.pid.Clear(capability.CAPS | capability.BOUNDS)
-	for _, g := range []capability.CapType{
-		capability.EFFECTIVE,
-		capability.PERMITTED,
-		capability.INHERITABLE,
-		capability.BOUNDING,
-	} {
+	c.pid.Clear(allCapabilityTypes)
+	for _, g := range capTypes {
 		c.pid.Set(g, c.caps[g]...)
 	}
-	if err := c.pid.Apply(capability.CAPS | capability.BOUNDS); err != nil {
-		return fmt.Errorf("can't apply capabilities: %w", err)
-	}
-
-	// Old version of capability package used to ignore errors from setting
-	// ambient capabilities, which is now fixed (see
-	// https://github.com/kolyshkin/capability/pull/3).
-	//
-	// To maintain backward compatibility, set ambient caps one by one and
-	// don't return any errors, only warn.
-	ambs := c.caps[capability.AMBIENT]
-	err := capability.ResetAmbient()
-	if err != nil {
-		return fmt.Errorf("can't reset ambient capabilities: %w", err)
-	}
-	for _, a := range ambs {
-		err := capability.SetAmbient(true, a)
-		if err != nil {
-			logrus.Warnf("can't raise ambient capability %s: %v", capToStr(a), err)
-		}
-	}
-
-	return nil
+	return c.pid.Apply(allCapabilityTypes)
 }
